@@ -14,6 +14,11 @@
 - Loadbalacing
 - Scalability
 
+# Storage
+- Block Stroage
+- Object Storage
+- File Storage
+
 # DevOps
 - SDLC
 - Waterfall, Agile Methodology
