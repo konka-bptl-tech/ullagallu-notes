@@ -1,21 +1,6 @@
 1. Introduction about git and github
 2. Git working areas and basic commands
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Git-1
 - VCS
 - Git Introduction
