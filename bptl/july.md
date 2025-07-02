@@ -6,7 +6,7 @@ with ci-cd   --- must ********
 AWS
 terraform
 Jenkins - manually
-Prometheus & graphana
+Prometheus & grafana
 ELK
 
 
