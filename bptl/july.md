@@ -30,3 +30,52 @@ terraform
 5 days
 ecs GitHub actions
 2 days
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------
+
+DAY - 1 - 03/July
+- vpc module
+- sg module
+- ec2 module (bastion - vpn)
+
+DAY - 2 - 04/july
+- ACM
+- parameter store
+- secrets manager
+- RDS
+- Elasticache
+
+DAY - 3 05/July
+- ALB (INTERNAL - EXTERNAL)
+- ASG
+
+DAY - 4
+- CloudFront
+- Jenkins Intro
+
+DAY - 5
+- Jenkins
+
+DAY - 6
+
+DAY - 7
+
+DAY - 8
+
+DAY - 9
+- Prometheus & Grafana
+
+DAY - 10
+- ELK
