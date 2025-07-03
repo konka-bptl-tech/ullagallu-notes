@@ -23,25 +23,24 @@
 - Terraform basic commands
 
 # 2
-- state file
-  - local state
-  - remote state
-- How can you manage configuration drift or prevent drift
-- state locking
-- provisioners
+1. state file[local state,remote state,locking]
+2. How can you manage configuration drift or prevent drift
+3. provisioners
   - file
   - local
   - remote
+4. Meta Arguments
+  - depends_on
+  - life_cycle
+5. Loops,conditions and functions
+
 
 # 3
-- meta arguments
-  - count,for_each,lifecycle,depends_on
-- count,for_each,for,splat operators
-- condition ? true : false[ternary]
+
 - import
 - workspaces
 - modules
 
 
 
-# 3. Terraform,loops,conditions and functions
+# 3 
