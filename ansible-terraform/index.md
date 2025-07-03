@@ -12,10 +12,11 @@
 - vault
 - Dynamic Inventory
 
-# Terraform-1
+# 1.
+- Manaul provision and problems
 - Iac & features
 - Terraform
-- blocks[resource,variable,output,data,terraform settings,provider,locals,null resource,dynamic block]
+- blocks[resource,variable,output,data,terraform settings,provider,locals,null resource,dynamic]
 - interpolation
 - variable types
 - tfvars,env,command vars
@@ -41,3 +42,7 @@
 - import
 - workspaces
 - modules
+
+
+
+# 3. Terraform,loops,conditions and functions
