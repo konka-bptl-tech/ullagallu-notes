@@ -12,7 +12,7 @@
 - vault
 - Dynamic Inventory
 
-# 1.
+# 1
 - Manaul provision and problems
 - Iac & features
 - Terraform
@@ -22,7 +22,7 @@
 - tfvars,env,command vars
 - Terraform basic commands
 
-# Terraform-2
+# 2
 - state file
   - local state
   - remote state
@@ -32,9 +32,8 @@
   - file
   - local
   - remote
-- functions[join,split,substr,coalesce,concat,concat,length,lookup,merge]
 
-# Terraform-3
+# 3
 - meta arguments
   - count,for_each,lifecycle,depends_on
 - count,for_each,for,splat operators
