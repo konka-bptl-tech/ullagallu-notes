@@ -127,6 +127,216 @@ spec:
 A Node Group is the set of EC2 instances in your cluster, and Cluster Autoscaler is the tool that watches your cluster and decides when to add or remove nodes from that group.
 They work together — but they are not the same.
 
+# Karpenter Setup with kubectl + helm
+1.  aws eks describe-cluster --name ullagallu-bapatlas-site --query "cluster.identity.oidc.issuer" It gives like below
+```markdown
+"https://oidc.eks.ap-south-1.amazonaws.com/id/95FD2BDCE2F848CF8FDDEB50BB4DE46D"
+```
+
+2. Create a trust policy file karpenter-trust.json:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/oidc.eks.<REGION>.amazonaws.com/id/<OIDC_ID>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.eks.<REGION>.amazonaws.com/id/<OIDC_ID>:sub": "system:serviceaccount:karpenter:karpenter"
+        }
+      }
+    }
+  ]
+}
+```
+3. Example
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::522814728660:oidc-provider/oidc.eks.ap-south-1.amazonaws.com/id/https://oidc.eks.ap-south-1.amazonaws.com/id/95FD2BDCE2F848CF8FDDEB50BB4DE46D"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.eks.ap-south-1.amazonaws.com/id/https://oidc.eks.ap-south-1.amazonaws.com/id/95FD2BDCE2F848CF8FDDEB50BB4DE46D:sub": "system:serviceaccount:karpenter:karpenter"
+        }
+      }
+    }
+  ]
+}
+```
+4. Then this command
+```markdown
+aws iam create-role \
+  --role-name KarpenterControllerRole-ullagallu-bapatlas-site \
+  --assume-role-policy-document file://karpenter-trust.json
+```
+5. Attach the policy
+```markdown
+aws iam attach-role-policy \
+  --role-name KarpenterControllerRole-ullagallu-bapatlas-site \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterAutoscalerPolicy
+```
+6. Add Karpenter using helm
+```markdown
+helm repo add karpenter https://charts.karpenter.sh
+helm repo update
+```
+7. Install Karpenter using Helm
+```markdown
+helm install karpenter karpenter/karpenter \
+  --namespace karpenter --create-namespace \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::<ACCOUNT_ID>:role/KarpenterControllerRole-${CLUSTER_NAME}" \
+  --set clusterName=${CLUSTER_NAME} \
+  --set clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text) \
+  --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
+```
+8. Modified Command for Karpenter Installation
+```markdown
+helm install karpenter karpenter/karpenter \
+  --namespace karpenter --create-namespace \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::522814728660:role/KarpenterControllerRole-ullagallu-bapatlas-site" \
+  --set clusterName=ullagallu-bapatlas-site \
+  --set clusterEndpoint=$(aws eks describe-cluster --name ullagallu-bapatlas-site --query "cluster.endpoint" --output text) \
+  --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-ullagallu-bapatlas-site
+```
+9. Create IAM Roles
+```mark down
+aws iam create-instance-profile \
+  --instance-profile-name KarpenterNodeInstanceProfile-${CLUSTER_NAME}
+
+aws iam create-role \
+  --role-name KarpenterNodeRole-${CLUSTER_NAME} \
+  --assume-role-policy-document file://ec2-trust-policy.json
+```
+10. Create IAM Roles
+```markdown
+aws iam create-instance-profile \
+  --instance-profile-name KarpenterNodeInstanceProfile-ullagallu-bapatlas-site 
+
+aws iam create-role \
+  --role-name KarpenterNodeRole-ullagallu-bapatlas-site  \
+  --assume-role-policy-document file://ec2-trust-policy.json
+```
+11. Attach Policies
+```markdown
+aws iam attach-role-policy --role-name KarpenterNodeRole-${CLUSTER_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+aws iam attach-role-policy --role-name KarpenterNodeRole-${CLUSTER_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+aws iam attach-role-policy --role-name KarpenterNodeRole-${CLUSTER_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+```
+12. Attach Policies
+```markdown
+aws iam attach-role-policy --role-name KarpenterNodeRole-ullagallu-bapatlas-site --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+aws iam attach-role-policy --role-name KarpenterNodeRole-ullagallu-bapatlas-site --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+aws iam attach-role-policy --role-name KarpenterNodeRole-ullagallu-bapatlas-site --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+```
+13. Create Instance Profile
+```markdown
+aws iam add-role-to-instance-profile \
+  --instance-profile-name KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+  --role-name KarpenterNodeRole-${CLUSTER_NAME}
+```
+14. Create Instance profile
+```markdown
+aws iam add-role-to-instance-profile \
+  --instance-profile-name KarpenterNodeInstanceProfile-ullagallu-bapatlas-site \
+  --role-name KarpenterNodeRole-ullagallu-bapatlas-site
+```
+15. default-provisioner.yaml
+```json
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+    - key: "node.kubernetes.io/instance-type"
+      operator: In
+      values: ["t3.medium", "m5.large"]
+  provider:
+    subnetSelector:
+      karpenter.sh/discovery: <CLUSTER_NAME>
+    securityGroupSelector:
+      karpenter.sh/discovery: <CLUSTER_NAME>
+  ttlSecondsAfterEmpty: 60
+```
+16. default-provisioner.yaml
+```json
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+    - key: "node.kubernetes.io/instance-type"
+      operator: In
+      values: ["t3.medium", "m5.large"]
+  provider:
+    subnetSelector:
+      karpenter.sh/discovery: ullagallu-bapatlas-site
+    securityGroupSelector:
+      karpenter.sh/discovery: ullagallu-bapatlas-site
+  ttlSecondsAfterEmpty: 60
+```
+17. Test the Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflate
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: inflate
+  template:
+    metadata:
+      labels:
+        app: inflate
+    spec:
+      containers:
+      - name: inflate
+        image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        resources:
+          requests:
+            cpu: 1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---------------------aws $300 credentials
 1. Buy Domain & Email in Hostinger

@@ -84,3 +84,13 @@
 - Istio
 - Backup using Valero
 - Cluster Upgradation
+
+
+# Learning Goals on EKS
+- Karpenter
+- Istio
+- gp2 to gp3 migration
+- Kyverno
+- Cluster Creation With Terraform
+- Backup using velero
+- Upgrade Cluster withou Downtime 
