@@ -128,7 +128,7 @@ A Node Group is the set of EC2 instances in your cluster, and Cluster Autoscaler
 They work together — but they are not the same.
 
 # Karpenter Setup with kubectl + helm
-1.  aws eks describe-cluster --name ullagallu-bapatlas-site --query "cluster.identity.oidc.issuer" It gives like below
+1.  aws eks describe-cluster --name karpenter --query "cluster.identity.oidc.issuer" It gives like below
 ```markdown
 "https://oidc.eks.ap-south-1.amazonaws.com/id/95FD2BDCE2F848CF8FDDEB50BB4DE46D"
 ```
@@ -176,21 +176,16 @@ They work together — but they are not the same.
 4. Then this command
 ```markdown
 aws iam create-role \
-  --role-name KarpenterControllerRole-ullagallu-bapatlas-site \
+  --role-name KarpenterControllerRole-karpenter \
   --assume-role-policy-document file://karpenter-trust.json
 ```
-5. Attach the policy
-```markdown
-aws iam attach-role-policy \
-  --role-name KarpenterControllerRole-ullagallu-bapatlas-site \
-  --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterAutoscalerPolicy
-```
-6. Add Karpenter using helm
+
+5. Add Karpenter using helm
 ```markdown
 helm repo add karpenter https://charts.karpenter.sh
 helm repo update
 ```
-7. Install Karpenter using Helm
+6. Install Karpenter using Helm
 ```markdown
 helm install karpenter karpenter/karpenter \
   --namespace karpenter --create-namespace \
@@ -199,16 +194,16 @@ helm install karpenter karpenter/karpenter \
   --set clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text) \
   --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
 ```
-8. Modified Command for Karpenter Installation
+7. Modified Command for Karpenter Installation
 ```markdown
 helm install karpenter karpenter/karpenter \
   --namespace karpenter --create-namespace \
-  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::522814728660:role/KarpenterControllerRole-ullagallu-bapatlas-site" \
-  --set clusterName=ullagallu-bapatlas-site \
-  --set clusterEndpoint=$(aws eks describe-cluster --name ullagallu-bapatlas-site --query "cluster.endpoint" --output text) \
-  --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-ullagallu-bapatlas-site
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::522814728660:role/KarpenterControllerRole-karpenter" \
+  --set clusterName=karpenter \
+  --set clusterEndpoint=$(aws eks describe-cluster --name karpenter --query "cluster.endpoint" --output text) \
+  --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-karpenter
 ```
-9. Create IAM Roles
+8. Create IAM Roles
 ```mark down
 aws iam create-instance-profile \
   --instance-profile-name KarpenterNodeInstanceProfile-${CLUSTER_NAME}
@@ -217,6 +212,8 @@ aws iam create-role \
   --role-name KarpenterNodeRole-${CLUSTER_NAME} \
   --assume-role-policy-document file://ec2-trust-policy.json
 ```
+9. Create IAM Roles
+=======
 * ec2-trust-policy.json
 ```json
 {
@@ -235,39 +232,56 @@ aws iam create-role \
 10. Create IAM Roles
 ```markdown
 aws iam create-instance-profile \
-  --instance-profile-name KarpenterNodeInstanceProfile-ullagallu-bapatlas-site 
+  --instance-profile-name KarpenterNodeInstanceProfile-karpenter
 
 aws iam create-role \
-  --role-name KarpenterNodeRole-ullagallu-bapatlas-site  \
+  --role-name KarpenterNodeRole-karpenter  \
   --assume-role-policy-document file://ec2-trust-policy.json
 ```
-11. Attach Policies
+10. Attach Policies
 ```markdown
 aws iam attach-role-policy --role-name KarpenterNodeRole-${CLUSTER_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
 aws iam attach-role-policy --role-name KarpenterNodeRole-${CLUSTER_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
 aws iam attach-role-policy --role-name KarpenterNodeRole-${CLUSTER_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 ```
-12. Attach Policies
+11. Attach Policies
 ```markdown
-aws iam attach-role-policy --role-name KarpenterNodeRole-ullagallu-bapatlas-site --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
-aws iam attach-role-policy --role-name KarpenterNodeRole-ullagallu-bapatlas-site --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-aws iam attach-role-policy --role-name KarpenterNodeRole-ullagallu-bapatlas-site --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+aws iam attach-role-policy --role-name KarpenterNodeRole-karpenter --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+aws iam attach-role-policy --role-name KarpenterNodeRole-karpenter --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+aws iam attach-role-policy --role-name KarpenterNodeRole-karpenter --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 ```
-13. Create Instance Profile
+12. Create Instance Profile
 ```markdown
 aws iam add-role-to-instance-profile \
   --instance-profile-name KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
   --role-name KarpenterNodeRole-${CLUSTER_NAME}
 ```
-14. Create Instance profile
+13. Create Instance profile
 ```markdown
 aws iam add-role-to-instance-profile \
-  --instance-profile-name KarpenterNodeInstanceProfile-ullagallu-bapatlas-site \
-  --role-name KarpenterNodeRole-ullagallu-bapatlas-site
+  --instance-profile-name KarpenterNodeInstanceProfile-karpenter \
+  --role-name KarpenterNodeRole-karpenter
+```
+14. default-provisioner.yaml
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+    - key: "node.kubernetes.io/instance-type"
+      operator: In
+      values: ["t3.medium", "m5.large"]
+  provider:
+    subnetSelector:
+      karpenter.sh/discovery: <CLUSTER_NAME>
+    securityGroupSelector:
+      karpenter.sh/discovery: <CLUSTER_NAME>
+  ttlSecondsAfterEmpty: 60
 ```
 15. default-provisioner.yaml
-```json
-
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -279,31 +293,12 @@ spec:
       values: ["t3.medium", "m5.large"]
   provider:
     subnetSelector:
-      karpenter.sh/discovery: <CLUSTER_NAME>
+      karpenter.sh/discovery: karpenter
     securityGroupSelector:
-      karpenter.sh/discovery: <CLUSTER_NAME>
+      karpenter.sh/discovery: karpenter
   ttlSecondsAfterEmpty: 60
 ```
-16. default-provisioner.yaml
-```json
-
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: default
-spec:
-  requirements:
-    - key: "node.kubernetes.io/instance-type"
-      operator: In
-      values: ["t3.medium", "m5.large"]
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: ullagallu-bapatlas-site
-    securityGroupSelector:
-      karpenter.sh/discovery: ullagallu-bapatlas-site
-  ttlSecondsAfterEmpty: 60
-```
-17. Test the Deployment
+16. Test the Deployment
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
