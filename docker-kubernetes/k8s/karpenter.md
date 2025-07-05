@@ -217,6 +217,21 @@ aws iam create-role \
   --role-name KarpenterNodeRole-${CLUSTER_NAME} \
   --assume-role-policy-document file://ec2-trust-policy.json
 ```
+* ec2-trust-policy.json
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
 10. Create IAM Roles
 ```markdown
 aws iam create-instance-profile \
