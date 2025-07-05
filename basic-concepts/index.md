@@ -1,5 +1,6 @@
 # Basic Concepts
 - Idempotency
+- Drift
 - Mutability & Immutability
 - DRY principle
 
