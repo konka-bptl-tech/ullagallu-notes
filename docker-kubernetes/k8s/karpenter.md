@@ -212,9 +212,7 @@ aws iam create-role \
   --role-name KarpenterNodeRole-${CLUSTER_NAME} \
   --assume-role-policy-document file://ec2-trust-policy.json
 ```
-9. Create IAM Roles
-=======
-* ec2-trust-policy.json
+9. ec2-trust-policy.json
 ```json
 {
   "Version": "2012-10-17",

@@ -20,6 +20,7 @@
 - Git Stash
 - Git Reset & Git Revert
 - Git Tags
+- Git Leaks
 - Git TroubleShooting
 
 # Git-4
