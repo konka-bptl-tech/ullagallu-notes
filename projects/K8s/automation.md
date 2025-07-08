@@ -13,9 +13,19 @@
 - Required aws services to setup infra for EKS application which is scalable and highly available
 - I leverage the terraform modules to reuse infra code again and again
 
-# Jenkins
+# Jenkins & ArGoCD
 - Automate build and release process
 
 # Logging & Monitoring
 - Prometheus & Grafana
 - ELK stack
+
+
+
+- NetworkPolicies
+- Karpenter
+- ArgoCd
+- Istio
+- Cluster Upgradation
+- Kyverno
+- KEDA
