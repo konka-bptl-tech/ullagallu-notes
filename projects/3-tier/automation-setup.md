@@ -19,3 +19,25 @@
 # Logging & Monitoring
 - Prometheus & Grafana
 - ELK stack
+
+
+
+# Easy to Setup
+Today Need to do
+- VPC
+- SG & Rules
+- Bastion & VPN
+- RDS
+- Elastic Cache
+- ALB & TG
+  - Internal & External
+- ASG
+  - frontend & backend
+
+- IAM Roles & Polcies[Do manually]
+- Parameter Store Manully
+- AWS Secrets Manager Manually
+Why becuase I wasted so much time on this once my 90% automation completes I will be work out on above Components
+
+- CI/CD pipelines to Auto Release Application
+
