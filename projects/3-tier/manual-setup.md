@@ -20,7 +20,7 @@ FLUSH PRIVILEGES;
 2. Luanch Elastic Cache valkey
    - Create Route53 Record
    
-3. Just Launch Ec2 instance install sudo dnf install redis6
+3. Just Launch Ec2 instance install sudo dnf install redis6 telnet git
 - Checking the connection: 
 ```bash 
 redis6-cli -h dns-name -p port --tls --insecure
@@ -31,7 +31,7 @@ telnet dns-name port
 ``` 
 - To come out from telnet: Press `Ctrl + ]` then type `quit` and press Enter. </pre>
 
-4. Prepare AMI wihtout service file
+4. Prepare AMI without hadcoding environment variables
 - Go to aws shell install packer using below commands
 ```bash
 #!/bin/bash
@@ -226,6 +226,62 @@ LOG "Node Exporter service started" $?
 echo -e "${G}Script execution completed successfully.${N}" | tee -a "$LOG_FILE"
 ```
 
+- In the same folder service.sh
+
+```bash
+#!/bin/bash
+set -e
+
+APP_DIR="/app"
+SERVICE_FILE="/etc/systemd/system/backend.service"
+SECRET_NAME="test/curd/db_crentials"
+
+# Install necessary tools
+echo "Installing awscli and jq"
+dnf install -y awscli jq
+
+# Fetch Secrets from Secrets Manager
+echo "Fectching Secrets from SecretsManager"
+SECRETS=$(aws secretsmanager get-secret-value --secret-id $SECRET_NAME --query SecretString --output text)
+DB_USER=$(echo "$SECRETS" | jq -r .DB_USER)
+DB_PASSWORD=$(echo "$SECRETS" | jq -r .DB_PASSWORD)
+
+# Fetch Configuration from SSM Parameter Store
+echo "Fetching non-sensitive data from ParameterStore"
+DB_HOST=$(aws ssm get-parameter --name "/test/crud/DB_HOST" --with-decryption --query "Parameter.Value" --output text)
+DB_NAME=$(aws ssm get-parameter --name "/test/crud/DB_NAME" --with-decryption --query "Parameter.Value" --output text)
+REDIS_HOST=$(aws ssm get-parameter --name "/test/crud/REDIS_HOST" --with-decryption --query "Parameter.Value" --output text)
+
+
+# Generate systemd service file
+echo "Generate service file for backend"
+cat <<EOF > $SERVICE_FILE
+[Unit]
+Description=Backend Service
+
+[Service]
+User=expense
+Environment="DB_HOST=${DB_HOST}"
+Environment="DB_USER=${DB_USER}"
+Environment="DB_PASSWORD=${DB_PASSWORD}"
+Environment="DB_NAME=${DB_NAME}"
+Environment="REDIS_HOST=${REDIS_HOST}"
+ExecStart=/usr/bin/node ${APP_DIR}/server.js
+SyslogIdentifier=backend
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Start service
+echo "Restart enable and start backend"
+systemctl daemon-reload
+systemctl enable backend
+systemctl start backend
+```
+
+```
 - create backend.pkr.hcl in backend folder
 ```hcl
   packer {
@@ -273,10 +329,17 @@ build {
     destination = "/tmp/backend.sh"
   }
 
+  provisioner "file" {
+    source      = "service.sh"
+    destination = "/usr/local/bin/init-backend-service.sh"
+  }
+
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/backend.sh",
-      "sudo /tmp/backend.sh"
+      "sudo /tmp/backend.sh",
+      "chmod +x /usr/local/bin/init-backend-service.sh",
+      "chown root:root /usr/local/bin/init-backend-service.sh"
     ]
   }
 }
@@ -341,58 +404,6 @@ packer build .
 
 7. Create Luanch template with backend-ami choose key and in assign instance profile above create role and enter user data
 
-```bash
-#!/bin/bash
-set -e
-
-APP_DIR="/app"
-SERVICE_FILE="/etc/systemd/system/backend.service"
-SECRET_NAME="test/curd/db_crentials"
-
-# Install necessary tools
-echo "Installing awscli and jq"
-dnf install -y awscli jq
-
-# Fetch Secrets from Secrets Manager
-echo "Fectching Secrets from SecretsManager"
-SECRETS=$(aws secretsmanager get-secret-value --secret-id $SECRET_NAME --query SecretString --output text)
-DB_USER=$(echo "$SECRETS" | jq -r .DB_USER)
-DB_PASSWORD=$(echo "$SECRETS" | jq -r .DB_PASSWORD)
-
-# Fetch Configuration from SSM Parameter Store
-echo "Fetching non-sensitive data from ParameterStore"
-DB_HOST=$(aws ssm get-parameter --name "/test/crud/DB_HOST" --with-decryption --query "Parameter.Value" --output text)
-DB_NAME=$(aws ssm get-parameter --name "/test/crud/DB_NAME" --with-decryption --query "Parameter.Value" --output text)
-REDIS_HOST=$(aws ssm get-parameter --name "/test/crud/REDIS_HOST" --with-decryption --query "Parameter.Value" --output text)
-
-
-# Generate systemd service file
-echo "Generate service file for backend"
-cat <<EOF > $SERVICE_FILE
-[Unit]
-Description=Backend Service
-
-[Service]
-User=expense
-Environment="DB_HOST=${DB_HOST}"
-Environment="DB_USER=${DB_USER}"
-Environment="DB_PASSWORD=${DB_PASSWORD}"
-Environment="DB_NAME=${DB_NAME}"
-Environment="REDIS_HOST=${REDIS_HOST}"
-ExecStart=/usr/bin/node ${APP_DIR}/server.js
-SyslogIdentifier=backend
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Start service
-echo "Restart enable and start backend"
-systemctl daemon-reload
-systemctl enable backend
-systemctl start backend
-```
 8. Luanch ASG with above template
 9. create target group and launch alb
 10. create route 53 record for ALB DNS
