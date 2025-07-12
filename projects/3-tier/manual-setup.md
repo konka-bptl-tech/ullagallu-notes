@@ -55,6 +55,9 @@ telnet dns-name port
 ### ✅ `backend` Folder Structure:
 
 ```
+carvo
+|
+packer.sh
 backend/
 ├── backend.sh
 ├── service.sh
@@ -297,18 +300,20 @@ build {
 
   provisioner "file" {
     source      = "service.sh"
-    destination = "/usr/local/bin/init-backend-service.sh"
+    destination = "/tmp/init-backend-service.sh"  # ✅ Use /tmp instead of /usr/local/bin
   }
 
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/backend.sh",
       "sudo /tmp/backend.sh",
-      "chmod +x /usr/local/bin/init-backend-service.sh",
-      "chown root:root /usr/local/bin/init-backend-service.sh"
+      "chmod +x /tmp/init-backend-service.sh",
+      "sudo mv /tmp/init-backend-service.sh /usr/local/bin/init-backend-service.sh",
+      "sudo chown root:root /usr/local/bin/init-backend-service.sh"
     ]
   }
 }
+
 ```
 ---
 ### Create AMI
