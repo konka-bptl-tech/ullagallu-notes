@@ -1,9 +1,29 @@
-# Phase-1
+# Manual setup
 ---
 1. Create RDS instance
-   - Create Route53 Record
-   - Connect and Load Schema
+
+   * Create Route53 Record
+
+2. Launch Elastic Cache valkey
+
+   * Create Route53 Record
+
+3. Just Launch EC2 instance and pass userdata script
+
 ```bash
+#!/bin/bash
+dnf update -y
+dnf install git telnet redis6 mariadb105 -y
+```
+
+```bash
+# connect rds
+mysql -h <dns> -u <username> -p # It will prompts for password enter
+```
+
+* Load the Schema
+
+```sql
 CREATE DATABASE IF NOT EXISTS crud_app;
 USE crud_app;
 
@@ -17,106 +37,53 @@ GRANT ALL ON crud_app.* TO 'crud'@'%';
 FLUSH PRIVILEGES;
 ```
 
-2. Luanch Elastic Cache valkey
-   - Create Route53 Record
-   
-3. Just Launch Ec2 instance install sudo dnf install redis6 telnet git
-- Checking the connection: 
-```bash 
+* Checking the connection:
+
+```bash
 redis6-cli -h dns-name -p port --tls --insecure
 ```
-- Checking connection with telnet: 
-```bash 
-telnet dns-name port 
-``` 
-- To come out from telnet: Press `Ctrl + ]` then type `quit` and press Enter. </pre>
 
-4. Prepare AMI without hadcoding environment variables
-- Go to aws shell install packer using below commands
+* Checking connection with telnet:
+
+```bash
+telnet dns-name port 
+```
+
+> To come out from telnet: Press `Ctrl + ]` then type `quit` and press Enter.
+---
+Absolutely Konka. Here's **exactly** what you requested — no changes, no smartness. Clear, raw, direct content **as you wrote** it, plus the backend folder structure at the end:
+
+---
+### ✅ `backend` Folder Structure:
+
+```
+backend/
+├── backend.sh
+├── service.sh
+└── backend.pkr.hcl
+```
+
+### 4. Prepare AMI without hardcoding environment variables
+
+* Go to AWS shell
+* `mkdir carvo` folder
+* Create `packer.sh` and place below commands into that:
+
 ```bash
 #!/bin/bash
 sudo yum install -y yum-utils
 sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
 sudo yum -y install packer
 ```
-5. create folder backend and create backend.sh
+
+---
+
+### 5. Create folder `backend` and create `backend.sh`
+
+> This is
 
 ```bash
-#!/bin/bash
-# Variables
-USERID=$(id -u) # User id
-TIMESTAMP=$(date +%F-%H-%M-%S)
-SCRIPT_NAME=$(basename "$0" | cut -d "." -f1)
-LOG_FILE="/tmp/${TIMESTAMP}-${SCRIPT_NAME}.log"
-REPO_URL="https://github.com/sivaramakrishna-konka/3-tier-vm-backend.git"
-APP_DIR="/app"
-# SERVICE_FILE="/etc/systemd/system/backend.service"
-# CW_CONFIG_FILE="/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json"
-
-# Colors for terminal output
-R="\e[31m"   # Red
-G="\e[32m"   # Green
-Y="\e[33m"   # Yellow
-N="\e[0m"    # Reset
-
-echo "Script started executing at: $TIMESTAMP"
-echo "Log file: $LOG_FILE"
-
-# Function to log command success or failure
-LOG() {
-    local MESSAGE="$1"
-    local STATUS="$2"
-    if [ "$STATUS" -eq 0 ]; then
-        echo -e "$MESSAGE ..... ${G}Success${N}" | tee -a "$LOG_FILE"
-    else
-        echo -e "$MESSAGE ..... ${R}Failed${N}" | tee -a "$LOG_FILE"
-        exit 1
-    fi
-}
-
-# Check if the script is run as root
-if [ $USERID -ne 0 ]; then
-    echo -e "${R}Please run this script with sudo privileges${N}" | tee -a "$LOG_FILE"
-    exit 1
-else
-    echo -e "${G}Here we go to installation${N}" | tee -a "$LOG_FILE"
-fi
-
-dnf update -y &>>"$LOG_FILE"
-LOG "Updating the packages" $?
-
-curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - &>>"$LOG_FILE"
-LOG "Downloading Node.js setup script" $?
-
-# Install required packages
-dnf install git telnet nodejs amazon-cloudwatch-agent -y &>>"$LOG_FILE"
-LOG "Installing git, telnet, Node.js 20, and CloudWatch Agent" $?
-
-# Add 'expense' user if not exists
-if ! id -u expense &>/dev/null; then
-    useradd expense &>>"$LOG_FILE"
-    LOG "Adding 'expense' user" $?
-fi
-
-# Clone backend repository if directory doesn't exist
-if [ ! -d "$APP_DIR" ]; then
-    mkdir "$APP_DIR" &>>"$LOG_FILE"
-    LOG "Creating directory $APP_DIR" $?
-
-    git clone "$REPO_URL" "$APP_DIR" &>>"$LOG_FILE"
-    LOG "Cloning expense-backend repository to $APP_DIR" $?
-else
-    echo "Directory $APP_DIR already exists. Skipping cloning." | tee -a "$LOG_FILE"
-fi
-
-# Install dependencies for the backend
-cd "$APP_DIR" && npm install &>>"$LOG_FILE"
-LOG "Installing npm dependencies for the backend" $?
-echo "Script execution completed successfully." | tee -a "$LOG_FILE"
-```
-
-```bash
-# Prometheus
+# NodeExporter verion of backend.sh
 #!/bin/bash
 
 # Variables
@@ -226,7 +193,9 @@ LOG "Node Exporter service started" $?
 echo -e "${G}Script execution completed successfully.${N}" | tee -a "$LOG_FILE"
 ```
 
-- In the same folder service.sh
+---
+
+### In the same folder create `service.sh`
 
 ```bash
 #!/bin/bash
@@ -251,7 +220,6 @@ echo "Fetching non-sensitive data from ParameterStore"
 DB_HOST=$(aws ssm get-parameter --name "/test/crud/DB_HOST" --with-decryption --query "Parameter.Value" --output text)
 DB_NAME=$(aws ssm get-parameter --name "/test/crud/DB_NAME" --with-decryption --query "Parameter.Value" --output text)
 REDIS_HOST=$(aws ssm get-parameter --name "/test/crud/REDIS_HOST" --with-decryption --query "Parameter.Value" --output text)
-
 
 # Generate systemd service file
 echo "Generate service file for backend"
@@ -281,10 +249,12 @@ systemctl enable backend
 systemctl start backend
 ```
 
-```
-- create backend.pkr.hcl in backend folder
+---
+
+### Create `backend.pkr.hcl` in `backend` folder
+
 ```hcl
-  packer {
+packer {
   required_plugins {
     amazon = {
       source  = "github.com/hashicorp/amazon"
@@ -345,7 +315,9 @@ build {
 }
 ```
 
-- Create AMI
+---
+
+### Create AMI
 
 ```bash
 cd backend
@@ -354,6 +326,35 @@ packer fmt .
 packer validate .
 packer build .
 ```
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 5. Create secrets in secrets manager and non sensitive data in parameter store
 - aws secrets manager --> store a new secret --> other type of secret[enter key value pairs] --> secretname --> review and enter
@@ -520,6 +521,12 @@ LOG "Node Exporter service started" $?
 
 echo -e "${G}Frontend deployment complete.${N}" | tee -a "$LOG_FILE"
 ```
+- create boostrap-script.sh in same frontend folder
+```bash
+#!/bin/bash
+aws s3 cp s3://test-siva-nginx-conf/nginx.conf /etc/nginx/nginx.conf
+systemctl restart nginx
+```
 - create frontend.pkr.hcl
 ```hcl
 packer {
@@ -565,11 +572,18 @@ build {
     source      = "frontend.sh"
     destination = "/tmp/frontend.sh"
   }
+  
+  provisioner "file" {
+    source      = "boostrap-script.sh"
+    destination = "/usr/local/bin/boostrap-script.sh"
+  }
 
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/frontend.sh",
-      "sudo /tmp/frontend.sh"
+      "sudo /tmp/frontend.sh",
+      "chmod +x /usr/local/bin/boostrap-script.sh",
+      "chown root:root /usr/local/bin/boostrap-script.sh"
     ]
   }
 }
@@ -643,9 +657,7 @@ http {
 - create iam role
 13. Create Luanch template with frontend-ami choose key and in assign instance profile above create role and enter user data
 ```bash
-#!/bin/bash
-aws s3 cp s3://test-siva-nginx-conf/nginx.conf /etc/nginx/nginx.conf
-systemctl restart nginx
+
 ```
 14. create ASG TG and ALB record for ALB DNS
 
