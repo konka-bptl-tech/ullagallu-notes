@@ -21,3 +21,16 @@ Backend (NodeJS app running on ECS - Fargate or EC2 launch type)
 - Terraform: InfraStructure
 - Observability: CloudWatch
 - AWS Secrets Manager: Secrets management
+
+
+
+
+# Infra Setup Using Terraform
+- VPC
+- SG
+- EKS
+  - NodeGroup
+  - Addons
+  - AccessEntry
+  - Karpenter
+  - helm charts

@@ -7,7 +7,11 @@
 6. How much did you except is it negotiable
 7. Is it fixed or any variable pay
 8. Why Do you have Career gap
-9. What's your Total experience`
+9. What's your Total experience
+10. Deployment Strategies
+    - Blue-Green Deployment
+    - Rolling Update
+    - Canary Deployment
 
 # Basic Interview Questions
 1. Tell me about your self

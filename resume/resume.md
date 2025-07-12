@@ -189,3 +189,26 @@ It would take near 12 to 15 weaks for us to migrate application into vms to comp
 
 Before my project migration 1 month back they introduce valkey it offers 30% lesser costs than redis oss and offer 4x faster than redis
 
+
+
+
+
+
+
+
+
+# EKS project
+
+Cloud :  AWS
+Tools : Terraform,Docker,K8s,Jenkins,ArgoCD,HashiCorp Valut,ISTIO,Prometheus & Grafana,Elastic Stack
+
+
+# Carvo Serverless Project
+
+Cloud : AWS
+Tools : Docker,Terraform,ECS,Secrets Manager,Github Actions,Cloud Watch 
+
+Migrate tradtional vm based architecture to Complete serverless ECS and S3
+Migrate redis to valkey in improve the results are it improves performce by 3x faster 30% lesser cost than redis
+migrate Jenkins pipelines to GithubActions
+

@@ -39,5 +39,13 @@ Today Need to do
 - AWS Secrets Manager Manually
 Why becuase I wasted so much time on this once my 90% automation completes I will be work out on above Components
 
-- CI/CD pipelines to Auto Release Application
+# CI/CD
+
+### CI Pipeline
+stage:1 checkout
+stage:2 npm test
+stage:3 AMI build
+stage:1 update LT with new AMI and Userdata
+stage:2 Refreshs ASG with new AMI
+
 
