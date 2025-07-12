@@ -60,7 +60,7 @@ carvo
 packer.sh
 backend/
 ├── backend.sh
-├── service.sh
+├── userdata.sh
 └── backend.pkr.hcl
 ```
 
@@ -194,7 +194,7 @@ echo -e "${G}Script execution completed successfully.${N}" | tee -a "$LOG_FILE"
 
 ---
 
-### In the same folder create `service.sh`
+### In the same folder create `userdata.sh`
 
 ```bash
 #!/bin/bash
@@ -298,18 +298,11 @@ build {
     destination = "/tmp/backend.sh"
   }
 
-  provisioner "file" {
-    source      = "service.sh"
-    destination = "/tmp/init-backend-service.sh"  # ✅ Use /tmp instead of /usr/local/bin
-  }
 
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/backend.sh",
       "sudo /tmp/backend.sh",
-      "chmod +x /tmp/init-backend-service.sh",
-      "sudo mv /tmp/init-backend-service.sh /usr/local/bin/init-backend-service.sh",
-      "sudo chown root:root /usr/local/bin/init-backend-service.sh"
     ]
   }
 }
@@ -462,7 +455,6 @@ backend-credentials-role
 ```
 frontend/
 ├── frontend.sh
-├── boostrap-script.sh
 ├── frontend.pkr.hcl
 ```
 
@@ -582,7 +574,7 @@ echo -e "${G}Frontend deployment complete.${N}" | tee -a "$LOG_FILE"
 
 ---
 
-### `boostrap-script.sh`
+### `user_data.sh`
 
 ```bash
 #!/bin/bash
@@ -638,17 +630,10 @@ build {
     destination = "/tmp/frontend.sh"
   }
 
-  provisioner "file" {
-    source      = "boostrap-script.sh"
-    destination = "/usr/local/bin/boostrap-script.sh"
-  }
-
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/frontend.sh",
-      "sudo /tmp/frontend.sh",
-      "chmod +x /usr/local/bin/boostrap-script.sh",
-      "chown root:root /usr/local/bin/boostrap-script.sh"
+      "sudo /tmp/frontend.sh"
     ]
   }
 }
@@ -689,7 +674,7 @@ http {
         }
 
         location /api/ {
-            proxy_pass http://backend.konkas.tech;
+            proxy_pass http://test-backend.konkas.tech;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -748,12 +733,6 @@ http {
 ```bash
 redis6-cli -h test-redis.konkas.tech -p 6379 --tls --insecure GET "all_entries" | jq .
 ```
-
----
-
-
-Perfect, Konka 🙌 — here is your **final Phase: CloudFront + SSL Setup** — clear and to-the-point.
-
 ---
 
 ## **16. Create SSL Certificate in ACM (Region: us-east-1)**
