@@ -50,10 +50,7 @@ telnet dns-name port
 ```
 
 > To come out from telnet: Press `Ctrl + ]` then type `quit` and press Enter.
----
-Absolutely Konka. Here's **exactly** what you requested — no changes, no smartness. Clear, raw, direct content **as you wrote** it, plus the backend folder structure at the end:
-
----
+### 4. Prepare AMI without hardcoding environment variables
 ### ✅ `backend` Folder Structure:
 
 ```
@@ -62,8 +59,6 @@ backend/
 ├── service.sh
 └── backend.pkr.hcl
 ```
-
-### 4. Prepare AMI without hardcoding environment variables
 
 * Go to AWS shell
 * `mkdir carvo` folder
