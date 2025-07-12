@@ -50,6 +50,7 @@ telnet dns-name port
 ```
 
 > To come out from telnet: Press `Ctrl + ]` then type `quit` and press Enter.
+
 ### 4. Prepare AMI without hardcoding environment variables
 ### ✅ `backend` Folder Structure:
 
@@ -309,11 +310,8 @@ build {
   }
 }
 ```
-
 ---
-
 ### Create AMI
-
 ```bash
 cd backend
 packer init .
@@ -321,91 +319,152 @@ packer fmt .
 packer validate .
 packer build .
 ```
-
 ---
+### **5. Create Secrets in Secrets Manager and Non-Sensitive Data in Parameter Store**
 
+#### 📌 Secrets Manager
 
+* Go to **AWS Secrets Manager** → **Store a new secret**
+* Choose **Other type of secret** → Enter key-value pairs:
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-5. Create secrets in secrets manager and non sensitive data in parameter store
-- aws secrets manager --> store a new secret --> other type of secret[enter key value pairs] --> secretname --> review and enter
 ```json
 {
   "DB_USER": "crud",
   "DB_PASSWORD": "CrudApp@1"
 }
 ```
-- enter the path like <environment>/<project_name>/<credentials_name> test/curd/db_crentials
 
-- go to parameter store enter all non-sensitive data in secure string type
-```bash
-/test/crud/DB_HOST[name]=test-db.konkas.tech[value]
-/test/crud/DB_NAME[name]=crud_app[value]
-/test/crud/REDIS_HOST[name]=test-redis.konkas.tech[value]
+* Secret name:
+
 ```
-6. Create IAM policy to get secrets and paramter strore
+test/curd/db_crentials
+```
+
+> 🔒 Store credentials in secret name path format like:
+
+```
+<environment>/<project_name>/<credentials_name>
+```
+
+---
+
+#### 📌 Parameter Store (secure string type)
+
+Go to **AWS Systems Manager > Parameter Store** and create below parameters as **SecureString**:
+
+```bash
+/test/crud/DB_HOST        = test-db.konkas.tech
+/test/crud/DB_NAME        = crud_app
+/test/crud/REDIS_HOST     = test-redis.konkas.tech
+```
+
+---
+
+### **6. Create IAM Policy to Allow Access to Secrets & Parameters**
+
+Create the following IAM policy (update `REGION` and `ACCOUNT_ID` accordingly):
 
 ```json
-  {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Effect": "Allow",
-        "Action": [
-          "ssm:GetParameter",
-          "ssm:GetParameters"
-        ],
-        "Resource": [
-          "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/test/crud/*" # Replace with your actual arn 
-        ]
-      },
-      {
-        "Effect": "Allow",
-        "Action": [
-          "secretsmanager:GetSecretValue"
-        ],
-        "Resource": [
-          "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:crud/db/credentials-??????" # Replace with actual arn
-        ]
-      }
-    ]
-  }
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters"
+      ],
+      "Resource": [
+        "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/test/crud/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:test/curd/db_crentials-??????"
+      ]
+    }
+  ]
+}
 ```
 
-- create iam role backend crednetials and ssm parameter and attach above policy
+---
 
-7. Create Luanch template with backend-ami choose key and in assign instance profile above create role and enter user data
+* Go to **IAM** → Create Role
+* Trusted entity: **EC2**
+* Attach above **policy**
+* Name the role:
 
-8. Luanch ASG with above template
-9. create target group and launch alb
-10. create route 53 record for ALB DNS
+```
+backend-credentials-role
+```
 
-11. Create folder frontend and inside create
-- frontend.sh
+---
+
+### **7. Create Launch Template (for Backend)**
+
+* Go to **EC2 > Launch Templates**
+* Create new Launch Template:
+
+  * Use **backend AMI**
+  * Select **existing key pair**
+  * Under **Advanced Details** → Add User Data (optional if required)
+  * Under **IAM Instance Profile** → Select the above created IAM Role:
+    `backend-credentials-role`
+
+---
+
+### **8. Launch Auto Scaling Group (ASG)**
+
+* Go to **EC2 > Auto Scaling Groups**
+* Create ASG using:
+
+  * The above Launch Template
+  * Attach to **VPC + Subnet**
+  * Set desired/min/max capacity
+  * Attach to existing or new Target Group
+
+---
+
+### **9. Create Target Group and Launch ALB**
+
+* Go to **EC2 > Load Balancers** → Create ALB:
+
+  * Type: **Application Load Balancer**
+  * Listener: HTTP (port 80)
+  * Select VPC and Subnets
+  * Target Group: Use **backend ASG** instances
+
+---
+
+### **10. Create Route 53 Record for ALB DNS**
+
+* Go to **Route 53 > Hosted Zones**
+* Create new **A record** or **CNAME**
+
+  * Name: `backend.konkas.tech` (example)
+  * Value: ALB DNS name
+
+---
+
+## **11. Create `frontend` folder and files inside**
+
+### 📁 Folder structure
+
+```
+frontend/
+├── frontend.sh
+├── boostrap-script.sh
+├── frontend.pkr.hcl
+```
+
+---
+
+### `frontend.sh`
+
 ```bash
 #!/bin/bash
 
@@ -513,16 +572,23 @@ systemctl enable node_exporter &>>"$LOG_FILE"
 systemctl start node_exporter &>>"$LOG_FILE"
 LOG "Node Exporter service started" $?
 
-
 echo -e "${G}Frontend deployment complete.${N}" | tee -a "$LOG_FILE"
 ```
-- create boostrap-script.sh in same frontend folder
+
+---
+
+### `boostrap-script.sh`
+
 ```bash
 #!/bin/bash
 aws s3 cp s3://test-siva-nginx-conf/nginx.conf /etc/nginx/nginx.conf
 systemctl restart nginx
 ```
-- create frontend.pkr.hcl
+
+---
+
+### `frontend.pkr.hcl`
+
 ```hcl
 packer {
   required_plugins {
@@ -537,7 +603,7 @@ source "amazon-ebs" "amz3_gp3" {
   ami_name      = "sivaf-{{timestamp}}"
   instance_type = "t3.micro"
   region        = "us-east-1"
-  
+
   source_ami_filter {
     filters = {
       name                = "al2023-ami-2023*"
@@ -547,9 +613,8 @@ source "amazon-ebs" "amz3_gp3" {
     most_recent = true
     owners      = ["amazon"]
   }
-  
+
   ssh_username  = "ec2-user"
-  # Adding tags to the AMI
   tags = {
     Name        = "sivaf-packer-image"
     Environment = "Development"
@@ -567,7 +632,7 @@ build {
     source      = "frontend.sh"
     destination = "/tmp/frontend.sh"
   }
-  
+
   provisioner "file" {
     source      = "boostrap-script.sh"
     destination = "/usr/local/bin/boostrap-script.sh"
@@ -583,15 +648,13 @@ build {
   }
 }
 ```
-- create AMI
-```bash
-cd frontend
-packer init .
-packer fmt .
-packer validate .
-packer build .
-```
-11. Create S3 bucket and place nginx.conf in it
+
+---
+
+## **12. Upload `nginx.conf` to S3**
+
+### Bucket: `test-siva-nginx-conf`
+
 ```nginx
 events {}
 
@@ -616,12 +679,10 @@ http {
         gzip on;
         gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
 
-        # Serve frontend
         location / {
             try_files $uri $uri/ /index.html;
         }
 
-        # Proxy API requests to backend
         location /api/ {
             proxy_pass http://backend.konkas.tech;
             proxy_http_version 1.1;
@@ -633,7 +694,13 @@ http {
     }
 }
 ```
-12. Create IAM role with below policy
+
+---
+
+## **13. Create IAM Role for Frontend EC2**
+
+### Policy to read from S3:
+
 ```json
 {
   "Version": "2012-10-17",
@@ -641,41 +708,151 @@ http {
     {
       "Sid": "AllowReadAccessToNginxConf",
       "Effect": "Allow",
-      "Action": [
-        "s3:GetObject"
-      ],
-      "Resource": "arn:aws:s3:::your-bucket-name/path/to/nginx.conf"
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::test-siva-nginx-conf/nginx.conf"
     }
   ]
 }
 ```
-- create iam role
-13. Create Luanch template with frontend-ami choose key and in assign instance profile above create role and enter user data
+
+* Create IAM Role: `frontend-read-nginx-role`
+* Attach policy above
+* Trust entity: EC2
+
+---
+
+## **14. Create Launch Template for Frontend**
+
+* Use **Frontend AMI**
+* Attach **frontend IAM role**
+* Optional: Add `bootstrap-script.sh` in User Data if needed
+
+---
+
+## **15. Create ASG, Target Group, ALB for Frontend**
+
+* Create ASG using frontend launch template
+* Register with Target Group
+* Create Application Load Balancer (ALB)
+* Route53 record → point to ALB DNS
+
+---
+
+## **16. Check Redis Entries**
+
 ```bash
-
-```
-14. create ASG TG and ALB record for ALB DNS
-
-15. Check the entries in redis
-
-```markdown    
 redis6-cli -h test-redis.konkas.tech -p 6379 --tls --insecure GET "all_entries" | jq .
 ```
-16. create certificate frontend-vm.konkas.tech same as create records to Route53
 
-17. create cloud front 
-```markdown
-create distribution --> choose origin frontend-vm.konkas.tech --> Alternative Name frontend-vm.konkas.tech --> certificate choose frontend-vm.konkas.tech
-
-Behaviours --> edit --> Allowed HTTP methods[ALLHTTPMethodsChoose][RedirectHTTPTOHTTPS]
-```
-
-
-```markdown
-Our developers make sure api response should be 15 ms latency application architectural response we enable elastic cache it ensure less latency some times it returns cache connnect we enable cloud front for edge locations
-- most of the errors are coming by misconfiguration
-```
 ---
+
+
+Perfect, Konka 🙌 — here is your **final Phase: CloudFront + SSL Setup** — clear and to-the-point.
+
+---
+
+## **16. Create SSL Certificate in ACM (Region: us-east-1)**
+
+### 🛡️ ACM Certificate: `frontend-vm.konkas.tech`
+
+1. Go to **AWS ACM** → **Request a public certificate**
+2. Add domain name:
+
+   ```
+   frontend-vm.konkas.tech
+   ```
+3. Choose validation method: **DNS Validation**
+4. ACM gives a CNAME record → **Copy it**
+5. Go to **Route 53 > Hosted Zone > konkas.tech**
+6. **Create Record** (CNAME) → Paste ACM validation record
+7. Wait for status: ✅ **"Issued"**
+
+---
+
+## **17. Create CloudFront Distribution**
+
+### 🌀 Steps:
+
+1. Go to **CloudFront** → Click **"Create Distribution"**
+
+---
+
+### 🔧 **Origin Settings**
+
+| Field               | Value                                    |
+| ------------------- | ---------------------------------------- |
+| **Origin Domain**   | `frontend-vm.konkas.tech`                |
+| **Origin Protocol** | **HTTP Only** (default, backend is HTTP) |
+| **Name**            | `frontend-origin`                        |
+
+---
+
+### 🌍 **General Settings**
+
+| Field                        | Value                                      |
+| ---------------------------- | ------------------------------------------ |
+| **Alternate Domain (CNAME)** | `frontend-vm.konkas.tech`                  |
+| **Custom SSL Certificate**   | Select: `frontend-vm.konkas.tech` from ACM |
+| **Default Root Object**      | `index.html` *(optional)*                  |
+
+---
+
+### ⚙️ **Behavior Settings**
+
+* Click **Edit Behavior**
+* Change settings:
+
+  | Field                      | Value                                                               |
+  | -------------------------- | ------------------------------------------------------------------- |
+  | **Allowed HTTP Methods**   | `GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE` *(All HTTP methods)* |
+  | **Redirect HTTP to HTTPS** | ✅ Enabled                                                           |
+  | **Caching**                | Use default (can adjust later)                                      |
+
+---
+
+### ☁️ Final Step:
+
+1. Click **Create Distribution**
+2. Wait for status: ✅ **Deployed**
+3. Go to Route53 → Create new **A record**
+
+   * Name: `frontend-vm.konkas.tech`
+   * Alias to: **CloudFront distribution domain name**
+---
+
+```markdown
+Our developers ensure that the API response latency remains within 15 ms. To support low-latency performance, we have integrated **Elastic Cache**, which helps in reducing load on the database and speeds up response times. Occasionally, errors related to cache connectivity may occur. Additionally, we have enabled **CloudFront** to serve content from edge locations, further improving performance and reducing latency for global users.
+
+> Note: Most of the issues we encountered were due to **misconfigurations**, which were resolved through proper infrastructure validation and configuration management.
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Phase-2[Monitoring Integration]
 ---
@@ -811,13 +988,6 @@ sudo systemctl status alertmanager
 - tail -f /var/log/nginx/access.log
 - tail -f /var/log/nginx/error.log
 - journalctl -u nginx
-
-
-
-
-
-
-
 
 # prometheus-grafana setup
 1. Install prometheus
