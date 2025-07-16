@@ -185,6 +185,28 @@
 - Kibana[visualize logs]
 
  
-
-
-  
+# Azure
+- Vnet
+- Vms
+- Azure Application Gateway
+- Azure Load Balancer
+- Azure Blob
+- Virtual Machine Scale Sets (VMSS)
+- Azure Managed Disks
+- Azure Active Directory (Azure AD)
+- Role-Based Access Control (RBAC)
+- Managed Identities (System/User)
+- Azure DNS
+- Azure Database for MySQL/PostgreSQL/SQL
+- Azure Cache for Redis
+- Azure Monitor Logs / Log Analytics
+- Azure Monitor Metrics
+- Azure Monitor Alerts
+- Azure Event Grid / Azure Event Hubs
+- Azure Activity Log + Diagnostic Logs
+- Azure Front Door / Azure CDN
+- Azure Kubernetes Service (AKS)
+- Azure Functions
+- Azure API Management (APIM)
+- Azure Functions Proxies / Logic Apps
+- Azure Key Vault (Secrets)
