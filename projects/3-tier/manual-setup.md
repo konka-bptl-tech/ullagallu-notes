@@ -1,4 +1,3 @@
-# Manual setup
 # 3-Tier Architecture on AWS with CI/CD Setup
 
 ## 1. VPC and Subnet Configuration
