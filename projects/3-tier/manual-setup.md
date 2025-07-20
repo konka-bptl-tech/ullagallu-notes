@@ -1,14 +1,80 @@
 # Manual setup
+# 3-Tier Architecture on AWS with CI/CD Setup
+
+## 1. VPC and Subnet Configuration
+
+### ✅ VPC Creation
+- **Name**: `3-tier-project`
+- **CIDR**: `192.168.0.0/16`
+- **Tenancy**: Default
+- **DNS Hostnames**: Enabled
+
+### ✅ Internet Gateway (IGW)
+- Create IGW named: `3-tier-project-IGW`
+- Attach to the VPC
+
+### ✅ Subnet Structure
+
+#### 🔹 Public Subnets
+Used for Bastion or Load Balancer (ELB) or for SSM connections:
+- `PublicSubnet-1a`: `192.168.1.0/24`
+- `PublicSubnet-1b`: `192.168.2.0/24`
+
+#### 🔹 Private Subnets
+
+| Tier        | Subnet Name                | CIDR             | AZ   |
+|-------------|----------------------------|------------------|------|
+| Web         | PrivateSubnet-Web-1a       | 192.168.3.0/24   | 1a   |
+| Web         | PrivateSubnet-Web-1b       | 192.168.4.0/24   | 1b   |
+| Application | PrivateSubnet-App-1a       | 192.168.5.0/24   | 1a   |
+| Application | PrivateSubnet-App-1b       | 192.168.6.0/24   | 1b   |
+| Database    | PrivateSubnet-Db-1a        | 192.168.7.0/24   | 1a   |
+| Database    | PrivateSubnet-Db-1b        | 192.168.8.0/24   | 1b   |
+
+> ☑️ Enable Auto-assign Public IP for `PublicSubnet-1a` and `PublicSubnet-1b`.
+
 ---
-1. Create RDS instance
+
+### ✅ NAT Gateway
+- **Name**: `3-tier-project-NAT`
+- Allocate **Elastic IP**
+- Launch NAT Gateway in **`PublicSubnet-1a`**
+
+---
+
+### ✅ Route Tables
+
+#### Public Route Table: `3-tier-project-public-rt`
+- Add route: `0.0.0.0/0` → IGW
+- Associate with: `PublicSubnet-1a`, `PublicSubnet-1b`
+
+#### Private Route Table: `3-tier-project-private-rt`
+- Add route: `0.0.0.0/0` → NAT Gateway
+- Associate with: All **private subnets**
+
+---
+
+## 2. Security Group Setup (Strict Access)
+
+| SG Name         | Purpose             | Inbound Rules                                                                                                                                 |
+|-----------------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| **Bastion-SG**  | Bastion Host         | Allow SSH (`22`) from `0.0.0.0/0`                                                                                                             |
+| **WebALB-SG**   | Public Web ALB       | Allow HTTP/HTTPS (`80`, `443`) from `0.0.0.0/0`                                                                                              |
+| **Web-SG**      | Web EC2              | Allow HTTP/HTTPS from `WebALB-SG` or `192.168.0.0/16`<br>Allow SSH from `Bastion-SG`                                                         |
+| **AppALB-SG**   | Internal App ALB     | Allow HTTP/HTTPS from `Web-SG` or `192.168.0.0/16`                                                                                           |
+| **App-SG**      | App EC2              | Allow TCP `3200` from `AppALB-SG` or `192.168.0.0/16`<br>Allow SSH from `Bastion-SG`                                                          |
+| **Database-SG** | RDS/MySQL            | Allow MySQL (`3306`) from `App-SG` or `192.168.0.0/16`<br>Allow MySQL from `Bastion-SG` (for emergency admin access or initial testing)       |
+
+---
+3. Create RDS instance
 
    * Create Route53 Record
 
-2. Launch Elastic Cache valkey
+4. Launch Elastic Cache valkey
 
    * Create Route53 Record
 
-3. Just Launch EC2 instance and pass userdata script
+5. Just Launch EC2 instance and pass userdata script
 
 ```bash
 #!/bin/bash
@@ -51,7 +117,7 @@ telnet dns-name port
 
 > To come out from telnet: Press `Ctrl + ]` then type `quit` and press Enter.
 
-### 4. Prepare AMI without hardcoding environment variables
+### 6. Prepare AMI without hardcoding environment variables
 ### ✅ `backend` Folder Structure:
 
 ```
@@ -77,7 +143,7 @@ sudo yum -y install packer
 
 ---
 
-### 5. Create folder `backend` and create `backend.sh`
+### 7. Create folder `backend` and create `backend.sh`
 
 > This is
 
@@ -318,7 +384,7 @@ packer validate .
 packer build .
 ```
 ---
-### **5. Create Secrets in Secrets Manager and Non-Sensitive Data in Parameter Store**
+### **8. Create Secrets in Secrets Manager and Non-Sensitive Data in Parameter Store**
 
 #### 📌 Secrets Manager
 
@@ -358,7 +424,7 @@ Go to **AWS Systems Manager > Parameter Store** and create below parameters as *
 
 ---
 
-### **6. Create IAM Policy to Allow Access to Secrets & Parameters**
+### **9. Create IAM Policy to Allow Access to Secrets & Parameters**
 
 Create the following IAM policy (update `REGION` and `ACCOUNT_ID` accordingly):
 
@@ -402,7 +468,7 @@ backend-credentials-role
 
 ---
 
-### **7. Create Launch Template (for Backend)**
+### **10. Create Launch Template (for Backend)**
 
 * Go to **EC2 > Launch Templates**
 * Create new Launch Template:
@@ -415,7 +481,7 @@ backend-credentials-role
 
 ---
 
-### **8. Launch Auto Scaling Group (ASG)**
+### **11. Launch Auto Scaling Group (ASG)**
 
 * Go to **EC2 > Auto Scaling Groups**
 * Create ASG using:
@@ -427,7 +493,7 @@ backend-credentials-role
 
 ---
 
-### **9. Create Target Group and Launch ALB**
+### **12. Create Target Group and Launch ALB**
 
 * Go to **EC2 > Load Balancers** → Create ALB:
 
@@ -438,7 +504,7 @@ backend-credentials-role
 
 ---
 
-### **10. Create Route 53 Record for ALB DNS**
+### **13. Create Route 53 Record for ALB DNS**
 
 * Go to **Route 53 > Hosted Zones**
 * Create new **A record** or **CNAME**
@@ -448,7 +514,7 @@ backend-credentials-role
 
 ---
 
-## **11. Create `frontend` folder and files inside**
+## **14. Create `frontend` folder and files inside**
 
 ### 📁 Folder structure
 
@@ -641,7 +707,7 @@ build {
 
 ---
 
-## **12. Upload `nginx.conf` to S3**
+## **15. Upload `nginx.conf` to S3**
 
 ### Bucket: `test-siva-nginx-conf`
 
@@ -687,7 +753,7 @@ http {
 
 ---
 
-## **13. Create IAM Role for Frontend EC2**
+## **16. Create IAM Role for Frontend EC2**
 
 ### Policy to read from S3:
 
@@ -711,7 +777,7 @@ http {
 
 ---
 
-## **14. Create Launch Template for Frontend**
+## **17. Create Launch Template for Frontend**
 
 * Use **Frontend AMI**
 * Attach **frontend IAM role**
@@ -719,7 +785,7 @@ http {
 
 ---
 
-## **15. Create ASG, Target Group, ALB for Frontend**
+## **18. Create ASG, Target Group, ALB for Frontend**
 
 * Create ASG using frontend launch template
 * Register with Target Group
@@ -728,14 +794,14 @@ http {
 
 ---
 
-## **16. Check Redis Entries**
+## **19. Check Redis Entries**
 
 ```bash
 redis6-cli -h test-redis.konkas.tech -p 6379 --tls --insecure GET "all_entries" | jq .
 ```
 ---
 
-## **16. Create SSL Certificate in ACM (Region: us-east-1)**
+## **20. Create SSL Certificate in ACM (Region: us-east-1)**
 
 ### 🛡️ ACM Certificate: `frontend-vm.konkas.tech`
 
@@ -753,7 +819,7 @@ redis6-cli -h test-redis.konkas.tech -p 6379 --tls --insecure GET "all_entries" 
 
 ---
 
-## **17. Create CloudFront Distribution**
+## **21. Create CloudFront Distribution**
 
 ### 🌀 Steps:
 
