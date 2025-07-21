@@ -1,7 +1,9 @@
 # 3-tier project
-- setup infra for 3-tier project using terraform
+- setup infra for 3-tier project using terraform[completed]
 - setup CI/CD pipelines for 3-tier project using jenkins
-- Blue-Green Deployment testing
+- Blue-Green Deployment
+- CloudWatch Integration get logs of backend and frontend as well as memory usage and everyting 
+  nof request...............
 
 # Migration to Serverless
 - setup infra for serverless using terraform
